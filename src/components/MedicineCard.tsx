@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Medicine } from '@/data/medicines';
-import styles from '@/app/page.module.css';
+import styles from './MedicineCard.module.css';
 
 // SVG icons for different categories
 const CategoryPlaceholderIcon = ({ category }: { category: string }) => {

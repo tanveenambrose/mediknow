@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Medicine } from '@/data/medicines';
 import MedicineCard from '@/components/MedicineCard';
+import cardStyles from '@/components/MedicineCard.module.css';
 import styles from './page.module.css';
 
 // SVG Category Icons for fallback in Modal
@@ -411,7 +412,7 @@ export default function Home() {
               // Shimmer skeleton loading
               <div className={styles.grid}>
                 {[...Array(6)].map((_, i) => (
-                  <div key={i} className={`${styles.card} glass-panel ${styles.skeletonCard}`}>
+                  <div key={i} className={`${cardStyles.card} glass-panel ${styles.skeletonCard}`}>
                     <div className={styles.skeletonImage}></div>
                     <div className={styles.skeletonBadge}></div>
                     <div className={styles.skeletonTitle}></div>
@@ -447,7 +448,7 @@ export default function Home() {
                     <button className="btn btn-primary" onClick={handleShowMore} disabled={loading}>
                       {loading ? (
                         <>
-                          <div className={styles.spinner} style={{ width: '16px', height: '16px', borderWidth: '2px' }}></div>
+                          <div className={cardStyles.spinner} style={{ width: '16px', height: '16px', borderWidth: '2px' }}></div>
                           Loading...
                         </>
                       ) : (
@@ -569,7 +570,7 @@ export default function Home() {
                   <h4 className={styles.modalSectionTitle} style={{ marginBottom: '0.5rem' }}>Product Images</h4>
                   {loadingModalImages ? (
                     <div className={styles.modalMainImageContainer}>
-                      <div className={styles.spinner} style={{ margin: 'auto' }}></div>
+                      <div className={cardStyles.spinner} style={{ margin: 'auto' }}></div>
                     </div>
                   ) : modalImages.length > 0 ? (
                     <>
