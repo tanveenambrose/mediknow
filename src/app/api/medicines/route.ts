@@ -359,6 +359,11 @@ export async function GET(request: NextRequest) {
     };
   };
 
+  // For empty search with default filters, use local DB directly (instant vs 10-30s openFDA query)
+  if (!q && category === 'All' && form === 'All' && prescription === 'All') {
+    return NextResponse.json(searchLocal());
+  }
+
   try {
     // Build openFDA search query
     // Base search terms
@@ -426,7 +431,8 @@ export async function GET(request: NextRequest) {
     console.log('[openFDA] URL:', openFdaUrl);
     
     const fdaResponse = await fetch(openFdaUrl, {
-      next: { revalidate: 3600 } // Cache results for 1 hour
+      signal: AbortSignal.timeout(8000),
+      cache: 'no-store'
     });
     
     if (fdaResponse.status === 404) {
