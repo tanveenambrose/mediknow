@@ -1,47 +1,228 @@
 'use client';
 
-import { useState, useMemo } from 'react';
-import { MEDICINES_DB, Medicine } from '@/data/medicines';
+import { useState, useEffect } from 'react';
+import { Medicine } from '@/data/medicines';
+import MedicineCard from '@/components/MedicineCard';
 import styles from './page.module.css';
+
+// SVG Category Icons for fallback in Modal
+const CategoryPlaceholderIcon = ({ category }: { category: string }) => {
+  const normalized = category.toLowerCase();
+  
+  if (normalized.includes('pain')) {
+    return (
+      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z" />
+        <path d="m8.5 8.5 7 7" />
+      </svg>
+    );
+  }
+  
+  if (normalized.includes('allergy')) {
+    return (
+      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z" />
+        <path d="m9 12 2 2 4-4" />
+      </svg>
+    );
+  }
+  
+  if (normalized.includes('digestive')) {
+    return (
+      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10Z" />
+        <path d="M12 6v12M8 10h8" />
+      </svg>
+    );
+  }
+  
+  if (normalized.includes('respiratory')) {
+    return (
+      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="M12 12a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" />
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z" />
+      </svg>
+    );
+  }
+  
+  if (normalized.includes('cardio')) {
+    return (
+      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
+        <path d="M3.22 12H7l2-5 3 10 2-7 1.5 4h3.78" />
+      </svg>
+    );
+  }
+  
+  return (
+    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M12 2v20M2 12h20" />
+    </svg>
+  );
+};
 
 export default function Home() {
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
+  
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [selectedForm, setSelectedForm] = useState<string>('All');
   const [prescriptionFilter, setPrescriptionFilter] = useState<string>('All');
+  
+  // Modal details
   const [activeModalMedicine, setActiveModalMedicine] = useState<Medicine | null>(null);
+  const [modalImages, setModalImages] = useState<string[]>([]);
+  const [loadingModalImages, setLoadingModalImages] = useState(false);
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
 
-  // Dynamic filter lists
+  // API State
+  const [loadedProducts, setLoadedProducts] = useState<Medicine[]>([]);
+  const [visibleCount, setVisibleCount] = useState(30);
+  const [totalProducts, setTotalProducts] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isFallback, setIsFallback] = useState(false);
+
+  // Dynamic filter options matching API mappings
   const categories = ['All', 'Pain Relief', 'Allergy', 'Digestive', 'Respiratory', 'Cardio'];
   const forms = ['All', 'Tablet', 'Syrup', 'Inhaler', 'Gel', 'Drops'];
 
-  // Filtered medicines based on search queries and side filters
-  const filteredMedicines = useMemo(() => {
-    return MEDICINES_DB.filter((medicine) => {
-      // Search text match
-      const matchesSearch =
-        medicine.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        medicine.genericName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        medicine.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        medicine.symptoms.some((s) => s.toLowerCase().includes(searchQuery.toLowerCase()));
+  // Debounce search query input (400ms)
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedQuery(searchQuery);
+    }, 400);
+    return () => clearTimeout(handler);
+  }, [searchQuery]);
 
-      // Category filter match
-      const matchesCategory =
-        selectedCategory === 'All' || medicine.category === selectedCategory;
+  // Fetch initial batch when filters or debounced query change
+  useEffect(() => {
+    let isMounted = true;
+    
+    const fetchInitial = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const queryParams = new URLSearchParams({
+          q: debouncedQuery,
+          category: selectedCategory,
+          form: selectedForm,
+          prescription: prescriptionFilter,
+          limit: '30',
+          skip: '0'
+        });
+        
+        const res = await fetch(`/api/medicines?${queryParams.toString()}`);
+        if (!res.ok) throw new Error('Failed to load medicines');
+        
+        const data = await res.json();
+        
+        if (isMounted) {
+          setLoadedProducts(data.results || []);
+          setTotalProducts(data.total || 0);
+          setIsFallback(!!data.fallback);
+          setVisibleCount(30); // reset visibility back to first 30
+        }
+      } catch (err: any) {
+        if (isMounted) {
+          setError(err.message || 'An error occurred while connecting to Mediknow Directory.');
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
 
-      // Form filter match
-      const matchesForm =
-        selectedForm === 'All' || medicine.form === selectedForm;
+    fetchInitial();
 
-      // Prescription filter match
-      const matchesPrescription =
-        prescriptionFilter === 'All' ||
-        (prescriptionFilter === 'OTC' && !medicine.prescriptionRequired) ||
-        (prescriptionFilter === 'Rx' && medicine.prescriptionRequired);
+    return () => {
+      isMounted = false;
+    };
+  }, [debouncedQuery, selectedCategory, selectedForm, prescriptionFilter]);
 
-      return matchesSearch && matchesCategory && matchesForm && matchesPrescription;
-    });
-  }, [searchQuery, selectedCategory, selectedForm, prescriptionFilter]);
+  // Fetch further products for pagination on "Show More"
+  const handleShowMore = async () => {
+    const nextSkip = loadedProducts.length;
+    const newVisibleCount = visibleCount + 30;
+    
+    // Check if we need to fetch more from API
+    if (newVisibleCount > loadedProducts.length && loadedProducts.length < totalProducts) {
+      setLoading(true);
+      try {
+        const queryParams = new URLSearchParams({
+          q: debouncedQuery,
+          category: selectedCategory,
+          form: selectedForm,
+          prescription: prescriptionFilter,
+          limit: '30',
+          skip: nextSkip.toString()
+        });
+        
+        const res = await fetch(`/api/medicines?${queryParams.toString()}`);
+        if (!res.ok) throw new Error('Failed to fetch further products');
+        
+        const data = await res.json();
+        setLoadedProducts(prev => [...prev, ...data.results]);
+        setTotalProducts(data.total);
+      } catch (err: any) {
+        console.error(err);
+        setError('Failed to fetch further products from the server.');
+      } finally {
+        setLoading(false);
+      }
+    }
+    
+    setVisibleCount(newVisibleCount);
+  };
+
+  // Show Less handler
+  const handleShowLess = () => {
+    setVisibleCount(prev => Math.max(30, prev - 30));
+  };
+
+  // Modal images fetch
+  useEffect(() => {
+    if (!activeModalMedicine) {
+      setModalImages([]);
+      setActiveImageIndex(0);
+      return;
+    }
+
+    if (!activeModalMedicine.isExternal) {
+      setModalImages([]);
+      setActiveImageIndex(0);
+      return;
+    }
+
+    let isMounted = true;
+    setLoadingModalImages(true);
+    
+    const cachedSingle = sessionStorage.getItem(`med-img-${activeModalMedicine.id}`);
+
+    fetch(`https://dailymed.nlm.nih.gov/dailymed/services/v2/spls/${activeModalMedicine.id}/media.json`)
+      .then(res => res.json())
+      .then(data => {
+        if (!isMounted) return;
+        const urls = data?.data?.media
+          ?.filter((m: any) => m.mime_type && m.mime_type.toLowerCase().startsWith('image/'))
+          ?.map((m: any) => m.url) || [];
+        setModalImages(urls);
+      })
+      .catch(err => {
+        console.error("Error loading modal images:", err);
+        if (cachedSingle && cachedSingle !== 'none') {
+          setModalImages([cachedSingle]);
+        }
+      })
+      .finally(() => {
+        if (isMounted) setLoadingModalImages(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [activeModalMedicine]);
 
   // Clear all filters handler
   const handleResetFilters = () => {
@@ -51,8 +232,19 @@ export default function Home() {
     setPrescriptionFilter('All');
   };
 
+  // Determine badge colors based on category
+  const badgeClass = (cat: string) => {
+    const normalized = cat.toLowerCase();
+    if (normalized.includes('pain')) return 'badge-primary';
+    if (normalized.includes('allergy')) return 'badge-secondary';
+    if (normalized.includes('digestive')) return 'badge-warning';
+    if (normalized.includes('respiratory')) return 'badge-primary';
+    if (normalized.includes('cardio')) return 'badge-danger';
+    return 'badge-primary';
+  };
+
   return (
-    <div className={styles.wrapper}>
+    <div className={styles.wrapper} suppressHydrationWarning>
       {/* Clinical Hero Section */}
       <section className={styles.heroSection}>
         <div className={`${styles.heroContainer} container`}>
@@ -188,9 +380,16 @@ export default function Home() {
           {/* Results Grid Area */}
           <div className={styles.resultsArea}>
             <div className={styles.resultsHeader}>
-              <p className={styles.resultsCount}>
-                Showing <strong>{filteredMedicines.length}</strong> {filteredMedicines.length === 1 ? 'medicine' : 'medicines'}
-              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                <p className={styles.resultsCount}>
+                  Showing <strong>{Math.min(visibleCount, loadedProducts.length)}</strong> of <strong>{totalProducts}</strong> {totalProducts === 1 ? 'medicine' : 'medicines'}
+                </p>
+                {isFallback && (
+                  <span style={{ fontSize: '0.75rem', color: 'var(--warning)', fontWeight: 500 }}>
+                    ⚠️ Network Fallback: Showing results from offline database
+                  </span>
+                )}
+              </div>
               {searchQuery && (
                 <span className={styles.searchTermTag}>
                   Search: &ldquo;{searchQuery}&rdquo;
@@ -198,64 +397,83 @@ export default function Home() {
               )}
             </div>
 
-            {filteredMedicines.length > 0 ? (
+            {error && (
+              <div className={styles.emptyState} style={{ borderColor: 'var(--danger)', padding: '3rem 2rem' }}>
+                <h3 style={{ color: 'var(--danger)' }}>Connection Error</h3>
+                <p>{error}</p>
+                <button className="btn btn-primary" onClick={handleResetFilters}>
+                  Reset Search & Filters
+                </button>
+              </div>
+            )}
+
+            {!error && loading && loadedProducts.length === 0 ? (
+              // Shimmer skeleton loading
               <div className={styles.grid}>
-                {filteredMedicines.map((medicine) => (
-                  <div
-                    key={medicine.id}
-                    className={`${styles.card} glass-panel`}
-                    onClick={() => setActiveModalMedicine(medicine)}
-                  >
-                    <div className={styles.cardHeader}>
-                      <span className={`${badgeClass(medicine.category)} badge`}>
-                        {medicine.category}
-                      </span>
-                      {medicine.prescriptionRequired ? (
-                        <span className="badge badge-danger">Rx Required</span>
-                      ) : (
-                        <span className="badge badge-secondary">OTC</span>
-                      )}
-                    </div>
-
-                    <h3 className={styles.cardName}>{medicine.name}</h3>
-                    <p className={styles.cardGeneric}>{medicine.genericName}</p>
-                    <p className={styles.cardDesc}>{medicine.description}</p>
-
-                    <div className={styles.symptomsTags}>
-                      {medicine.symptoms.slice(0, 3).map((sym) => (
-                        <span key={sym} className={styles.symTag}>
-                          {sym}
-                        </span>
-                      ))}
-                      {medicine.symptoms.length > 3 && (
-                        <span className={styles.symTagMore}>+{medicine.symptoms.length - 3} more</span>
-                      )}
-                    </div>
-
-                    <div className={styles.cardFooter}>
-                      <span className={styles.cardPrice}>${medicine.price.toFixed(2)}</span>
-                      <button className="btn btn-secondary" style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem' }}>
-                        View Details
-                      </button>
-                    </div>
+                {[...Array(6)].map((_, i) => (
+                  <div key={i} className={`${styles.card} glass-panel ${styles.skeletonCard}`}>
+                    <div className={styles.skeletonImage}></div>
+                    <div className={styles.skeletonBadge}></div>
+                    <div className={styles.skeletonTitle}></div>
+                    <div className={styles.skeletonText} style={{ width: '80%' }}></div>
+                    <div className={styles.skeletonText} style={{ width: '90%' }}></div>
+                    <div className={styles.skeletonFooter}></div>
                   </div>
                 ))}
               </div>
-            ) : (
-              <div className={styles.emptyState}>
-                <div className={styles.emptyIcon}>
-                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                    <circle cx="11" cy="11" r="8" />
-                    <line x1="21" x2="16.65" y1="21" y2="16.65" />
-                    <line x1="8" x2="14" y1="11" y2="11" />
-                  </svg>
+            ) : !error && loadedProducts.length > 0 ? (
+              <>
+                <div className={styles.grid}>
+                  {loadedProducts.slice(0, visibleCount).map((medicine) => (
+                    <MedicineCard
+                      key={medicine.id}
+                      medicine={medicine}
+                      onClick={() => setActiveModalMedicine(medicine)}
+                    />
+                  ))}
                 </div>
-                <h3>No medicines matched your criteria</h3>
-                <p>Try clearing some filters, editing your search query, or checking our Symptom Checker.</p>
-                <button className="btn btn-primary" onClick={handleResetFilters}>
-                  Reset All Filters
-                </button>
-              </div>
+
+                {/* Pagination Controls */}
+                <div className={styles.paginationContainer}>
+                  {visibleCount > 30 && (
+                    <button className="btn btn-secondary" onClick={handleShowLess}>
+                      Show Less
+                    </button>
+                  )}
+                  <span className={styles.paginationInfo}>
+                    Showing {Math.min(visibleCount, loadedProducts.length)} of {totalProducts}
+                  </span>
+                  {visibleCount < totalProducts && (
+                    <button className="btn btn-primary" onClick={handleShowMore} disabled={loading}>
+                      {loading ? (
+                        <>
+                          <div className={styles.spinner} style={{ width: '16px', height: '16px', borderWidth: '2px' }}></div>
+                          Loading...
+                        </>
+                      ) : (
+                        'See More'
+                      )}
+                    </button>
+                  )}
+                </div>
+              </>
+            ) : (
+              !error && (
+                <div className={styles.emptyState}>
+                  <div className={styles.emptyIcon}>
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                      <circle cx="11" cy="11" r="8" />
+                      <line x1="21" x2="16.65" y1="21" y2="16.65" />
+                      <line x1="8" x2="14" y1="11" y2="11" />
+                    </svg>
+                  </div>
+                  <h3>No medicines matched your criteria</h3>
+                  <p>Try clearing some filters, editing your search query, or checking our Symptom Checker.</p>
+                  <button className="btn btn-primary" onClick={handleResetFilters}>
+                    Reset All Filters
+                  </button>
+                </div>
+              )
             )}
           </div>
         </div>
@@ -285,13 +503,20 @@ export default function Home() {
                 )}
               </div>
               <h2 className={styles.modalName}>{activeModalMedicine.name}</h2>
-              <p className={styles.modalGeneric}>{activeModalMedicine.genericName}</p>
+              <p className={styles.modalGeneric}>
+                {activeModalMedicine.genericName}
+              </p>
+              {activeModalMedicine.manufacturer && (
+                <p style={{ fontSize: '0.85rem', color: 'var(--medium-slate)', marginTop: '-0.25rem' }}>
+                  <strong>Manufacturer:</strong> {activeModalMedicine.manufacturer}
+                </p>
+              )}
             </div>
 
             <div className={styles.modalBody}>
               <div className={styles.modalMainCol}>
                 <div className={styles.modalSection}>
-                  <h4 className={styles.modalSectionTitle}>Description</h4>
+                  <h4 className={styles.modalSectionTitle}>Clinical Description</h4>
                   <p className={styles.modalText}>{activeModalMedicine.description}</p>
                 </div>
 
@@ -323,9 +548,63 @@ export default function Home() {
                     ))}
                   </ul>
                 </div>
+
+                {activeModalMedicine.dosageForms && activeModalMedicine.dosageForms.length > 0 && (
+                  <div className={styles.modalSection}>
+                    <h4 className={styles.modalSectionTitle}>Available Dosage Forms</h4>
+                    <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', marginTop: '0.25rem' }}>
+                      {activeModalMedicine.dosageForms.map((df, index) => (
+                        <span key={index} className="badge badge-secondary" style={{ backgroundColor: 'var(--bg-main)', color: 'var(--dark-slate)', border: '1px solid var(--border-color)' }}>
+                          {df}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className={styles.modalSideCol}>
+                {/* Image Gallery */}
+                <div className={styles.modalGalleryContainer}>
+                  <h4 className={styles.modalSectionTitle} style={{ marginBottom: '0.5rem' }}>Product Images</h4>
+                  {loadingModalImages ? (
+                    <div className={styles.modalMainImageContainer}>
+                      <div className={styles.spinner} style={{ margin: 'auto' }}></div>
+                    </div>
+                  ) : modalImages.length > 0 ? (
+                    <>
+                      <div className={styles.modalMainImageContainer}>
+                        <img
+                          src={modalImages[activeImageIndex]}
+                          alt={activeModalMedicine.name}
+                          className={styles.modalMainImage}
+                        />
+                      </div>
+                      {modalImages.length > 1 && (
+                        <div className={styles.modalThumbnails}>
+                          {modalImages.map((img, idx) => (
+                            <img
+                              key={idx}
+                              src={img}
+                              alt="thumbnail"
+                              className={`${styles.modalThumb} ${activeImageIndex === idx ? styles.modalThumbActive : ''}`}
+                              onClick={() => setActiveImageIndex(idx)}
+                            />
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div className={styles.modalMainImageContainer} style={{ background: 'var(--bg-main)', color: 'var(--light-slate)' }}>
+                      <div className={styles.cardImagePlaceholder}>
+                        <CategoryPlaceholderIcon category={activeModalMedicine.category} />
+                        <span style={{ fontSize: '0.8rem', fontWeight: 500, marginTop: '0.5rem' }}>No Packaging Photos</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Warnings */}
                 <div className={styles.modalWarningBox}>
                   <div className={styles.modalWarningTitle}>
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -354,21 +633,4 @@ export default function Home() {
       )}
     </div>
   );
-}
-
-function badgeClass(category: string) {
-  switch (category) {
-    case 'Pain Relief':
-      return 'badge-primary';
-    case 'Allergy':
-      return 'badge-secondary';
-    case 'Digestive':
-      return 'badge-warning';
-    case 'Respiratory':
-      return 'badge-primary';
-    case 'Cardio':
-      return 'badge-danger';
-    default:
-      return 'badge-primary';
-  }
 }

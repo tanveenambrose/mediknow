@@ -2,8 +2,8 @@ export interface Medicine {
   id: string;
   name: string;
   genericName: string;
-  category: 'Pain Relief' | 'Allergy' | 'Digestive' | 'Respiratory' | 'Cardio';
-  form: 'Tablet' | 'Syrup' | 'Inhaler' | 'Gel' | 'Drops';
+  category: string;
+  form: string;
   description: string;
   uses: string[];
   sideEffects: string[];
@@ -12,6 +12,11 @@ export interface Medicine {
   prescriptionRequired: boolean;
   price: number;
   symptoms: string[];
+  strength?: string;
+  manufacturer?: string;
+  dosageForms?: string[];
+  images?: string[];
+  isExternal?: boolean;
 }
 
 export const MEDICINES_DB: Medicine[] = [
