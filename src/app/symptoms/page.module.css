@@ -412,6 +412,10 @@
   border-radius: var(--radius-sm);
 }
 
+.matchingChipPartial {
+  background-color: var(--warning);
+}
+
 .recCardDesc {
   font-size: 0.925rem;
   line-height: 1.5;

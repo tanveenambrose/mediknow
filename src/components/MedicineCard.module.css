@@ -144,3 +144,17 @@
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+
+.bdBadge {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  background: linear-gradient(135deg, #006a4e, #00966e);
+  color: #ffffff;
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 0.15rem 0.45rem;
+  border-radius: var(--radius-sm);
+  letter-spacing: 0.03em;
+  box-shadow: 0 2px 6px rgba(0, 106, 78, 0.3);
+}

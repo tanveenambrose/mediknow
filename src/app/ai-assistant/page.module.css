@@ -376,6 +376,89 @@
   cursor: not-allowed;
 }
 
+/* Product Cards Inline */
+.productCards {
+  margin-top: 0.75rem;
+  border-top: 1px solid var(--border-color);
+  padding-top: 0.75rem;
+}
+
+.productCardsLabel {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--medium-slate);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 0.5rem;
+}
+
+.productCardsGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.5rem;
+}
+
+.miniCard {
+  background-color: var(--bg-main);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 0.65rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  transition: border-color var(--transition-fast);
+}
+
+.miniCard:hover {
+  border-color: var(--primary);
+}
+
+.miniCardHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.miniCardBadge {
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: var(--primary);
+  background-color: var(--primary-light);
+  padding: 0.1rem 0.35rem;
+  border-radius: var(--radius-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.miniCardBd {
+  font-size: 0.55rem;
+  font-weight: 700;
+  color: #ffffff;
+  background-color: #006a4e;
+  padding: 0.1rem 0.3rem;
+  border-radius: var(--radius-sm);
+}
+
+.miniCardName {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--dark-slate);
+  line-height: 1.2;
+}
+
+.miniCardGeneric {
+  font-size: 0.65rem;
+  color: var(--medium-slate);
+  line-height: 1.2;
+}
+
+.miniCardPrice {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--success);
+  margin-top: auto;
+}
+
 /* Responsive Styles */
 @media (max-width: 992px) {
   .chatLayout {

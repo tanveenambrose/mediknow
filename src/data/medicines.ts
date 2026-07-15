@@ -11,12 +11,44 @@ export interface Medicine {
   dosage: string;
   prescriptionRequired: boolean;
   price: number;
+  priceBDT?: number;
   symptoms: string[];
   strength?: string;
   manufacturer?: string;
   dosageForms?: string[];
   images?: string[];
+  imageUrl?: string;
   isExternal?: boolean;
+  isBangladeshi?: boolean;
+  source?: 'local' | 'openfda' | 'medidata';
+}
+
+export interface MediDataMedicine {
+  id: string;
+  brand_name: string;
+  generic_name: string;
+  manufacturer: string;
+  strength: string;
+  dosage_form: string;
+  category: string;
+  unit_price: number;
+  price_bdt: number;
+  product_type: 'OTC' | 'Rx';
+  image_url?: string;
+  description?: string;
+  indications: string[];
+  side_effects: string[];
+  warnings: string[];
+  dosage?: string;
+  symptoms: string[];
+}
+
+export interface MediDataResponse {
+  status: 'success' | 'error';
+  data: MediDataMedicine[];
+  total: number;
+  page: number;
+  limit: number;
 }
 
 export const MEDICINES_DB: Medicine[] = [
